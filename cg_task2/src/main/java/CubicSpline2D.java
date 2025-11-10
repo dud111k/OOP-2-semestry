@@ -5,58 +5,59 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CubicSpline2D {
-    private CubicSpline sx;
-    private CubicSpline sy;
-    private double[] params;
+    private final CubicSpline splineX;
+    private final CubicSpline splineY;
 
     public CubicSpline2D(List<Double> x, List<Double> y) {
-        this.params = calculateParams(x, y);
+        int n = x.size();
+
+        double[] params = new double[n];
+        for (int i = 0; i < n; i++) {
+            params[i] = i;
+        }
 
         double[] xArr = listToArray(x);
         double[] yArr = listToArray(y);
-        double[] pArr = params;
 
-        this.sx = new CubicSpline(pArr, xArr);
-        this.sy = new CubicSpline(pArr, yArr);
+        this.splineX = new CubicSpline(params, xArr);
+        this.splineY = new CubicSpline(params, yArr);
     }
 
-    public Point2D point(double param) {
-        Double x = sx.point(param);
-        Double y = sy.point(param);
-        if (x == null || y == null) return null;
-        return new Point2D(x, y);
-    }
-
-    private double[] calculateParams(List<Double> x, List<Double> y) {
-        int n = x.size();
-        double[] s = new double[n];
-        s[0] = 0.0;
-
-        for (int i = 1; i < n; i++) {
-            double dx = x.get(i) - x.get(i - 1);
-            double dy = y.get(i) - y.get(i - 1);
-            s[i] = s[i - 1] + Math.sqrt(dx * dx + dy * dy);
-        }
-
-        return s;
+    public Point2D point(double t) {
+        Double x = splineX.point(t);
+        Double y = splineY.point(t);
+        return (x == null || y == null) ? null : new Point2D(x, y);
     }
 
     public List<Point2D> interpolate(int numPoints) {
         List<Point2D> result = new ArrayList<>();
-        if (params.length < 2) return result;
 
-        double start = params[0];
-        double end = params[params.length - 1];
+        double start = 0;
+        double end = splineX.point(start) == null ? 0 :
+                getParamRange();
 
         for (int i = 0; i < numPoints; i++) {
-            double t = (double) i / (numPoints - 1);
-            double param = start + t * (end - start);
-            Point2D point = point(param);
-            if (point != null) {
-                result.add(point);
+            double t = start + (end - start) * i / (numPoints - 1);
+            Point2D p = point(t);
+            if (p != null) {
+                result.add(p);
             }
         }
         return result;
+    }
+
+    private double getParamRange() {
+        return splineX.point(0) == null ? 0 :
+                findMaxParam();
+    }
+
+    private double findMaxParam() {
+
+        double max = 0;
+        while (splineX.point(max + 0.1) != null) {
+            max += 0.1;
+        }
+        return max;
     }
 
     private double[] listToArray(List<Double> list) {
